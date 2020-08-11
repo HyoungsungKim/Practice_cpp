@@ -9,3 +9,4 @@ add.o : add.cpp
 
 clean :
 	rm *.o *.out
+	
