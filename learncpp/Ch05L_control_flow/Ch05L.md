@@ -6,3 +6,6 @@ C++ provides **control flow statements** (also called *flow control statements*)
 
 ### Halt
 
+> Rule
+>
+> Only use std::exit() if there is no safe way to return from the main  function.  Don’t use it as an easy way out, you’ll leak resources.
