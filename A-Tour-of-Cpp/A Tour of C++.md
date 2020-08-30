@@ -98,3 +98,137 @@ static_assert(4<=sizeof(int), "integers are too small");
 - Print error message when condition is not true.
 - The most important uses of `static_assert` come when we make assertions about types used as parameters in generic programming.
 
+## 4.2 Concrete Types
+
+The basic idea of concrete classes is that they behave ‘‘just like built-in types.’’ For example, a complex number type and an infinite-precision integer are much like built-in `int`, except of course that they have their own semantics and sets of operations. Similarly, a `vector` and a `string` are much like built-in arrays, except that they are better behaved.
+
+### 4.2.2 A Container
+
+A container is an object holding a collection of elements.
+
+The constructor allocates the elements and initializes the Vector members appropriately. The destructor deallocates the  elements. This handle-to-data model is very commonly used to manage data that can vary in size during the lifetime of an object.
+
+- The technique of acquiring resources in a constructor and releasing them in a destructor, known as ***Resource Acquisition Is Initialization or RAII***, allows us to eliminate ‘‘naked new operations,’’ that is, to ***avoid allocations in general code and keep them buried inside the implementation of well-behaved abstractions***.
+- Similarly, ‘‘naked delete operations’’ should be avoided. Avoiding naked new and naked delete makes code far less error-prone and far easier to keep free of resource leaks
+
+## 4.3 Abstract Types
+
+An abstract type is a type that completely insulates a user from implementation details. ***To do that, we decouple the interface from the representation and give up genuine local variables***. Since we don’t know anything about the representation of an abstract type (not even its size), we must allocate objects on the free store(§4.2.2) and access them through references or pointer.
+
+```c++
+class Container {
+public:
+    virtual double& operator[](int) = 0; // = 0 means it is pure virtual function.
+    virtual int size() const = 0;
+    virtual ~Container(){}
+};
+```
+
+This class is a pure interface to specific containers defined later. The word virtual means ‘‘may be redefined later in a class derived from this one.’’ Unsurprisingly, a function declared `virtual` is called a `virtual function`. A class derived from Container provides an implementation for the Container interface. ***The curious=0 syntax says the function is pure virtual***; that is, some class derived from Container must define the function. Thus, it is not possible to define an object that is just a Container. 
+
+- `pure virtual` : 반드시 재정의 해야함. 사용하지 않아도 정의 되어야 함.(재정의가 가능한 함수 의미)
+- `virtual` : 사용하려면 재정의 해야함. 하지만 사용 안할려면 재정의 안해도 됨.(재정의 해야만 하는 함수 의미)
+
+```c++
+Container c;						// Error: There can be no objects of an abstract class
+Container* p = new Vector_container(10);	// Ok: Container is an interface
+```
+
+A Container can only serve as the interface to a class that implements its `operator[]()` and `size()` functions. ***A class with a pure virtual function is called an abstract class***.
+
+The Container can be used liker this:
+
+```c++
+void use(Container& c) {
+    const int sz = c.size();
+    for(int i = 0; i != sz; ++i) {
+        cout <<c[i] << '\n';
+    }
+}
+```
+
+> ***Rule: Whenever you are dealing with inheritance, you should make any explicit destructors virtual.***
+
+## 4.5 Class Hierarchies
+
+### 4.5.1 Benefits from Hierarchies
+
+A class hierarchy offers two kinds of benefits:
+
+- ***Interface inheritance***: An object of a derived class can be used wherever an object of a base class is required.  ***That is, the base class acts as an interface for the derived class***.
+- ***Implementation inheritance***: A base class provides functions or data that simplifies the implementation of derived classes. Smiley’s uses of Circle’s constructor and of Circle::draw() are examples. Such base classes often have data members and constructors
+
+### 4.5.2 Hierarchy Navigation
+
+The `read_shape()` function returns `Shape∗` so that we can treat all `Shapes` alike.  However,  what  can we do if we want to use a member function that is only provided by a particular derived class, such as `Smiley`’s `wink()`?  We can ask ‘‘is this `Shape` a kind of `Smiley`?’’ using the `dynamic_cast` operator:
+
+```c++
+Shape* ps{read_shape(cin)};
+if (Smiley* p = dynamic_cast<Smiley*>(ps)) {
+    
+}
+else {
+    
+}
+```
+
+- Code is cleaner when `dynamic_cast` is used with restraint. If we can avoid using type information, we can write simpler and more efficient code, but occasionally type information is lost and must be recovered.
+- Operations similar to dynamic_cast are known as ‘‘is kind of’’ and ‘‘is instance of’’ operations.
+
+## Ch 5 Essential Operations
+
+### 5.1 Introduction
+
+#### 5.1.1 Essential Operations
+
+```c++
+class X {
+public:
+    X(Sometype);	// "Ordinary constructor" : create an object
+    X();			// default constructor
+    X(const X& x);	// copy constructor(X is a type)
+    X(X&& x);		// move constructor
+    X& operator=(const X& x); // copy assignment: clean up target and copy
+    X& operator=(X&& x);      // move assignment: clean up target and move
+    ~X();			// destructor
+};
+```
+
+### 5.2 Copy and Move
+
+When we design a class, we must always consider if and how an object might be copied. For simple concrete types, memberwise copy is often exactly the right semantics for copy. For some sophisticated concrete types, such as Vector, memberwise copy is not the right semantics for copy; for abstract types it almost never is.
+
+#### 5.2.1 Copying Containers
+
+- Default copy : Shallow copy
+
+Deep copy example
+
+1. Copy constructor
+
+```c++
+Vector::Vector(const Vector& a) :elem{new double[a.sz]}, sz{a.sz} {
+    // Copy constructor
+    for(int i{0}; i != sz; ++i) {
+        elem[i] = a.elem[i];
+}
+```
+
+2. Copy assignment
+
+```c++
+Vector& Vector::operator=(const Vector& a) {
+    double* p = new double[a.sz];
+    for(int i{0}; i != a.sz; ++i) {
+        p[i] = a.elem[i];
+    }
+    // delete old elements
+    delete[] elem;
+    elem = p;
+    sz = a.sz;
+    return *this;
+}
+```
+
+- ***Do not forget to delete old elements***
+
